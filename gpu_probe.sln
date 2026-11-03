@@ -1,0 +1,19 @@
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "gpu_probe", "gpu_probe.csproj", "{2AC91119-33AA-400F-96C3-DB3F4994445A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+	Debug|Any CPU = Debug|Any CPU
+	ExportDebug|Any CPU = ExportDebug|Any CPU
+	ExportRelease|Any CPU = ExportRelease|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2AC91119-33AA-400F-96C3-DB3F4994445A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2AC91119-33AA-400F-96C3-DB3F4994445A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2AC91119-33AA-400F-96C3-DB3F4994445A}.ExportDebug|Any CPU.ActiveCfg = ExportDebug|Any CPU
+		{2AC91119-33AA-400F-96C3-DB3F4994445A}.ExportDebug|Any CPU.Build.0 = ExportDebug|Any CPU
+		{2AC91119-33AA-400F-96C3-DB3F4994445A}.ExportRelease|Any CPU.ActiveCfg = ExportRelease|Any CPU
+		{2AC91119-33AA-400F-96C3-DB3F4994445A}.ExportRelease|Any CPU.Build.0 = ExportRelease|Any CPU
+	EndGlobalSection
+EndGlobal
