@@ -13,7 +13,6 @@ bool outside(ivec2 pos, ivec2 size) {
 }
 
 // GLSL ES 3.0 (Compatibility renderer) only allows constant indices into sampler
-// arrays, so the slot lookup is unrolled with literal indices.
 #define READ_SLOT(N) if (q.w == N) { return outside(q.xy, textureSize(textures[N], 0)) ? oob_colors[N][q.z] : texelFetch(textures[N], q.xy, 0)[q.z]; }
 
 float get_reading(int index) {
