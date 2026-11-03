@@ -15,7 +15,7 @@ public override void _Ready()
     GPUProbe.SetTexture(water_tex_slot, water_sim_rect.Texture);
 }
 ```
-Then tell it which values you need and what to do with them in a callback:
+Then tell it which values you need and what to do with them in a callback:  
 For example I store the water in the BLUE channel so I ask for the BLUE to get the BLUE value
 ```
 public override void _PhysicsProcess(double delta)
