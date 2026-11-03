@@ -16,7 +16,7 @@ public override void _Ready()
 }
 ```
 Then tell it which values you need and what to do with them in a callback:  
-For example I store the water in the BLUE channel so I ask for the BLUE to get the BLUE value
+For example I store the water in the BLUE channel so I ask for the channel B in the water_tex_slot to get the value.
 ```
 public override void _PhysicsProcess(double delta)
 {
