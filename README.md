@@ -15,14 +15,14 @@ Then navigate Project -> Project Settings -> Plugins -> GPU Probe -> Enable
   
 First tell the probe where to look:
 ```
-ColorRect water_sim_rect;
+ColorRect gpu_water_sim_rect;
 int water_tex_slot = 0;
 bool in_water = false;
 
 public override void _Ready()
 {
     water_sim_rect = GetNode<ColorRect>("WaterSimRect");
-    GPUProbe.SetTexture(water_tex_slot, water_sim_rect.Texture);
+    GPUProbe.SetTexture(water_tex_slot, gpu_water_sim_rect.Texture);
 }
 ```
 Then tell it which values you need and what to do with them in a callback:  
