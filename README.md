@@ -53,7 +53,7 @@ Keep one request for each thing you want to check and submit it again whenever y
 
 
 ## More options
-**Points:** you can write a point as `(x, y, channel, slot)` or `(Vector2I, channel, slot)`, and you can mix both in the same list:
+**Points:** you can write a point as `(x, y, channel, slot)` or `(Vector2I, channel, slot)` and you can mix both in the same list:
 ```cs
 req.Submit([
     (px_pos, GPUProbe.Channel.R, 0),
