@@ -15,7 +15,7 @@ It is useful for reading live data from shaders, textures that change in real ti
 2) Go to Project -> Project Settings -> Plugins -> GPU Probe -> Enable  
 3) "Add Autoload" will show up in the output log. This means the GPU Probe autoload was added.  
   
-If you use the C# version of the engine then do not use the GDscript version or the .gd files will bombard your C# IDE with false positive errors.  
+If you use the C# version of the engine then do not copy the GDscript addon version or the .gd files will bombard your C# IDE with false positive errors.  
 
 
 ## Usage
