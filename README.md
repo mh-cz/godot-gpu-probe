@@ -33,6 +33,7 @@ public override void _PhysicsProcess(double delta)
 }
 ```
 ## -----
-- The probe works in batches. Probe size dictates how many individual bytes can a single batch return. Default is (32*2)*4 = 256 individual bytes from all texture slots combined.  
-- If a pixel position is being constantly updated while trottling then only the latest pixel position will be kept and probed in the next batch.  
+- The probe works in batches. Probe size dictates how many individual bytes can a single batch return. Default is (32*2)*4 = 256 individual bytes from all texture slots combined.
 - GPUs usually have better things to do than constantly sending data through the CPU so default throttling is set to 100 millisecond intervals.  
+- If a pixel position is being constantly updated while throttling then only the latest pixel position will be kept and probed in the next batch.  
+
