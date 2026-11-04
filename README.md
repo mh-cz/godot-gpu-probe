@@ -9,6 +9,10 @@ This is useful for checking live data from shaders, real-time changing textures 
 
 
 ## Usage
+Copy the "gpu_probe" folder in your "addons" folder. It it doesn't exist then create "addons" in the "res://" directory.  
+Then navigate Project -> Project Settings -> Plugins -> GPU Probe -> Enable  
+In the output you "Add Autoload" will show up.  
+  
 First tell the probe where to look:
 ```
 ColorRect water_sim_rect;
