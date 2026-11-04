@@ -11,7 +11,7 @@ This is useful for checking live data from shaders, real-time changing textures 
 ## Usage
 Copy the "gpu_probe" folder in your "addons" folder. If it doesn't exist then create a new "addons" folder in the "res://" directory.  
 Then navigate Project -> Project Settings -> Plugins -> GPU Probe -> Enable  
-In the output you "Add Autoload" will show up.  
+"Add Autoload" will show up in the output log which means the GPU Probe autoload was successfully added.  
   
 First tell the probe where to look:
 ```
