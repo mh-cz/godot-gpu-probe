@@ -21,7 +21,7 @@ bool in_water = false;
 
 public override void _Ready()
 {
-    water_sim_rect = GetNode<ColorRect>("WaterSimRect");
+    gpu_water_sim_rect = GetNode<ColorRect>("GPUWaterSimRect");
     GPUProbe.SetTexture(water_tex_slot, gpu_water_sim_rect.Texture);
 }
 ```
