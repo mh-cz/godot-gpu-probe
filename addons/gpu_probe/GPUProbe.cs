@@ -13,11 +13,11 @@ public partial class GPUProbe : CanvasLayer
     public static int COMPATIBILITY_WAIT_FRAMES = 2;    // Frames to wait before reading back on the Compatibility renderer (OpenGL) to avoid blocking the GPU
 
     // The larger the probe, the more points can be read back in a single batch but the longer the GPU will stall
-    // 32x2 = 256 points per batch, a sweet spot for most use cases
+    // 32x2 = 256 points (bytes) per batch, a sweet spot for most use cases
     private const int PROBE_WIDTH = 32;
     private const int PROBE_HEIGHT = 2;
 
-    private const int MAX_TEXTURES = 8;  // Texture slot count. Must match the shader's MAX_TEXTURES define
+    private const int MAX_TEXTURES = 8;  // Must match the shader's MAX_TEXTURES define
     private const int MAX_BATCH_COUNT = PROBE_WIDTH * PROBE_HEIGHT * 4;  // W * H * RGBA
 
     public static string AUTOLOAD_NAME { get; private set;} = "GPUProbe";
@@ -40,10 +40,8 @@ public partial class GPUProbe : CanvasLayer
     private ColorRect rect;
     private ShaderMaterial mat;
 
-    private List<ProbeRequest> queue = [];
-    private Dictionary<int, ProbeRequest> dict = [];
-    private Stack<ProbeRequest> pool = new();
-    private List<ProbeRequest> batch = [];
+    private List<Request> queue = [];
+    private List<Request> batch = [];
 
     private byte[] query_bytes;
     private Image query_img;
@@ -61,16 +59,102 @@ public partial class GPUProbe : CanvasLayer
     private Callable readback_done;
     private byte[] readback_data;
 
-    public delegate void ProbeCallback(ReadOnlySpan<byte> values);
 
-
-    private class ProbeRequest
+    // Both (x, y, chn, slot) and (pos, chn, slot) tuples convert implicitly, so they can be mixed in one Submit list
+    public readonly struct Point(int x, int y, Channel chn, int slot)
     {
-        public int id_hash;
-        public int[] data = new int[MAX_BATCH_COUNT * 4];
-        public int count;
-        public bool urgent;
-        public ProbeCallback callback;
+        public readonly int X = x;
+        public readonly int Y = y;
+        public readonly Channel Chn = chn;
+        public readonly int Slot = slot;
+
+        public static implicit operator Point((int x, int y, Channel chn, int slot) p)
+            => new(p.x, p.y, p.chn, p.slot);
+
+        public static implicit operator Point((Vector2I pos, Channel chn, int slot) p)
+            => new(p.pos.X, p.pos.Y, p.chn, p.slot);
+    }
+
+
+    public sealed class Request
+    {
+        public Action<Request> Callback;
+        public int Count { get; private set; }
+
+        internal int[] pending_points = [];
+        internal int[] result_points = [];
+        internal byte[] results = [];
+        internal int result_count;
+        internal int sent_count;
+        internal bool queued;
+        internal bool urgent;
+        internal bool cancelled;
+
+
+        public Request(Action<Request> callback = null)
+            => Callback = callback;
+
+        public void Cancel()
+            => Inst.CancelRequest(this);
+
+        public ReadOnlySpan<byte> Result
+            => new(results, 0, result_count);
+
+
+        public void Submit(ReadOnlySpan<Point> pts, bool urgent = false)
+        {
+            int[] p = ReservePointBuffer(pts.Length);
+
+            for (int i = 0; i < pts.Length; i++)
+            {
+                var pt = pts[i];
+                int o = i * 4;
+                p[o    ] = pt.X;
+                p[o + 1] = pt.Y;
+                p[o + 2] = (int)pt.Chn;
+                p[o + 3] = pt.Slot;
+            }
+
+            Inst.EnqueueRequest(this, urgent);
+        }
+
+
+        public (Vector2I pos, Channel chn, int slot) GetResultPoint(int i)
+        {
+            if ((uint)i >= (uint)result_count)
+                throw new ArgumentOutOfRangeException(nameof(i));
+
+            int o = i * 4;
+            return (new Vector2I(result_points[o], result_points[o + 1]), (Channel)result_points[o + 2], result_points[o + 3]);
+        }
+
+
+        private int[] ReservePointBuffer(int count)
+        {
+            if (count > MAX_BATCH_COUNT)
+                throw new ArgumentException($"[GPUProbe] {count} points requested, max per request is {MAX_BATCH_COUNT}", nameof(count));
+
+            if (pending_points.Length < count * 4)
+                pending_points = new int[count * 4];
+
+            Count = count;
+            return pending_points;
+        }
+
+
+        internal void StoreReadbackResults(ReadOnlySpan<byte> values, ReadOnlySpan<float> query)
+        {
+            if (results.Length < values.Length)
+            {
+                results = new byte[values.Length];
+                result_points = new int[values.Length * 4];
+            }
+
+            values.CopyTo(results);
+            for (int i = 0; i < query.Length; i++)
+                result_points[i] = (int)query[i];
+            result_count = values.Length;
+        }
     }
 
 
@@ -114,7 +198,7 @@ public partial class GPUProbe : CanvasLayer
         tex = probe_sbv.GetTexture();
 
         rd = RenderingServer.GetRenderingDevice();
-        readback_done = new Callable(this, MethodName.OnReadbackDone);
+        readback_done = new Callable(this, MethodName.OnAsyncReadbackDone);
         RenderingServer.Singleton.Connect(RenderingServer.SignalName.FramePostDraw, new Callable(this, MethodName.OnFramePostDraw));
 
         query_bytes = new byte[MAX_BATCH_COUNT * 4 * sizeof(float)];
@@ -137,10 +221,10 @@ public partial class GPUProbe : CanvasLayer
     /// Sets the texture to read from in the given texture slot
     /// </summary>
     public static void SetTexture(int slot, Texture2D texture, Color out_of_bounds_color = default)
-        => Inst.SetTex(slot, texture, out_of_bounds_color);
+        => Inst.SetTextureSlot(slot, texture, out_of_bounds_color);
 
 
-    private void SetTex(int slot, Texture2D texture, Color out_of_bounds)
+    private void SetTextureSlot(int slot, Texture2D texture, Color out_of_bounds)
     {
         if (slot < 0 || slot >= MAX_TEXTURES)
             throw new ArgumentOutOfRangeException(nameof(slot), $"[GPUProbe] slot must be 0..{MAX_TEXTURES - 1}");
@@ -152,74 +236,17 @@ public partial class GPUProbe : CanvasLayer
     }
 
 
-    /// <summary>
-    /// Requests the GPU to read back the given points from the given texture slots
-    /// The callback is called once the GPU has finished rendering and reading back the data
-    /// </summary>
-    public static void ProbePosition(ulong caller_id, int call_id, ReadOnlySpan<(int x, int y, Channel chn, int slot)> points, ProbeCallback callback, bool urgent = false)
-        => Inst.ProbePos(caller_id, call_id, points, callback, urgent);
-    
-
-    private void ProbePos(ulong caller_id, int call_id, ReadOnlySpan<(int x, int y, Channel chn, int slot)> points, ProbeCallback callback, bool urgent)
+    private void EnqueueRequest(Request req, bool urgent)
     {
-        int[] data = GetRequestBuffer(caller_id, call_id, points.Length, callback, urgent);
+        ArgumentNullException.ThrowIfNull(req);
 
-        for (int i = 0; i < points.Length; i++)
+        if (!req.queued)
         {
-            var (x, y, chn, slot) = points[i];
-            int o = i * 4;
-            data[o] = x;
-            data[o + 1] = y;
-            data[o + 2] = (int)chn;
-            data[o + 3] = slot;
-        }
-    }
-
-
-    /// <summary>
-    /// Requests the GPU to read back the given points from the given texture slots
-    /// The callback is called once the GPU has finished rendering and reading back the data
-    /// </summary>
-    public static void ProbePosition(ulong caller_id, int call_id, ReadOnlySpan<(Vector2I pos, Channel chn, int slot)> points, ProbeCallback callback, bool urgent = false)
-        => Inst.ProbePos(caller_id, call_id, points, callback, urgent);
-
-
-    private void ProbePos(ulong caller_id, int call_id, ReadOnlySpan<(Vector2I pos, Channel chn, int slot)> points, ProbeCallback callback, bool urgent)
-    {
-        int[] data = GetRequestBuffer(caller_id, call_id, points.Length, callback, urgent);
-
-        for (int i = 0; i < points.Length; i++)
-        {
-            var (pos, chn, slot) = points[i];
-            int o = i * 4;
-            data[o] = pos.X;
-            data[o + 1] = pos.Y;
-            data[o + 2] = (int)chn;
-            data[o + 3] = slot;
-        }
-    }
-
-
-    // Finds the queued request for (caller_id, call_id) or takes one from the pool
-    // Sets its count and callback
-    // And returns its buffer for the caller to fill with (x, y, chn, slot) params
-    private int[] GetRequestBuffer(ulong caller_id, int call_id, int count, ProbeCallback callback, bool urgent)
-    {
-        if (count > MAX_BATCH_COUNT)
-            throw new ArgumentException($"[GPUProbe] {count} points requested, max per request is {MAX_BATCH_COUNT}", nameof(count));
-
-        int key = HashCode.Combine(caller_id, call_id);
-
-        if (!dict.TryGetValue(key, out var req))
-        {
-            req = pool.Count > 0 ? pool.Pop() : new ProbeRequest();
-            req.id_hash = key;
+            req.queued = true;
             req.urgent = false;
             queue.Add(req);
-            dict[key] = req;
         }
 
-        // Urgent requests skip the throttle
         if (urgent && !req.urgent)
         {
             req.urgent = true;
@@ -227,35 +254,50 @@ public partial class GPUProbe : CanvasLayer
             queue.Insert(0, req);
         }
         urgent_queued |= urgent;
+    }
 
-        req.count = count;
-        req.callback = callback;
-        return req.data;
+
+    private void CancelRequest(Request req)
+    {
+        ArgumentNullException.ThrowIfNull(req);
+
+        if (req.queued)
+        {
+            queue.Remove(req);
+            req.queued = false;
+            req.urgent = false;
+            urgent_queued = queue.Count > 0 && queue[0].urgent;
+        }
+
+        req.cancelled = true;
     }
 
 
     public override void _PhysicsProcess(double delta)
     {
         if (state == State.IDLE && queue.Count > 0 && (urgent_queued || Time.GetTicksMsec() - last_read_ms >= THROTTLE_MS))
-            SubmitBatch();
+            RenderNextBatch();
     }
 
 
-    private void SubmitBatch()
+    private void RenderNextBatch()
     {
         Span<float> q = MemoryMarshal.Cast<byte, float>(query_bytes);
         int used = 0, n = 0;
 
-        while (n < queue.Count && used + queue[n].count <= MAX_BATCH_COUNT)
+        while(n < queue.Count && used + queue[n].Count <= MAX_BATCH_COUNT)
         {
             var req = queue[n];
-            int[] data = req.data;
+            int[] data = req.pending_points;
             int base_i = used * 4;
-            for (int i = 0; i < req.count * 4; i++)
+            for (int i = 0; i < req.Count * 4; i++)
                 q[base_i + i] = data[i];
-            used += req.count;
+            used += req.Count;
 
-            dict.Remove(req.id_hash);
+            req.sent_count = req.Count;
+            req.queued = false;
+            req.urgent = false;
+            req.cancelled = false;
             batch.Add(req);
             n++;
         }
@@ -307,48 +349,54 @@ public partial class GPUProbe : CanvasLayer
             return;
 
         using Image img = tex.GetImage();
-        Deliver(img.GetData());
+        DeliverBatchResults(img.GetData());
     }
 
 
-    private void OnReadbackDone(byte[] data)
+    private void OnAsyncReadbackDone(byte[] data)
     {
-        if (state != State.READBACK) 
+        if (state != State.READBACK)
             return;
 
         readback_data = data;
-        CallDeferred(MethodName.DeliverReadback);
+        CallDeferred(MethodName.DeliverAsyncReadback);
     }
 
 
-    private void DeliverReadback()
+    private void DeliverAsyncReadback()
     {
         byte[] data = readback_data;
         readback_data = null;
-        Deliver(data);
+        DeliverBatchResults(data);
     }
 
 
-    private void Deliver(byte[] raw)
+    private void DeliverBatchResults(byte[] raw)
     {
         last_read_ms = Time.GetTicksMsec();
+        ReadOnlySpan<float> q = MemoryMarshal.Cast<byte, float>(query_bytes);
         int head = 0;
 
         foreach (var req in batch)
         {
-            try
+            int count = req.sent_count;
+            bool freed = req.Callback?.Target is GodotObject target && !IsInstanceValid(target);
+            
+            if (!req.cancelled && !freed)
             {
-                req.callback?.Invoke(new ReadOnlySpan<byte>(raw, head, req.count));
-            }
-            catch (Exception e)
-            {
-                GD.PushError($"[GPUProbe] callback threw: {e}");
+                req.StoreReadbackResults(new ReadOnlySpan<byte>(raw, head, count), q.Slice(head * 4, count * 4));
+
+                try
+                {
+                    req.Callback?.Invoke(req);
+                }
+                catch (Exception e)
+                {
+                    GD.PushError($"[GPUProbe] callback threw: {e}");
+                }
             }
 
-            head += req.count;
-            req.callback = null;
-            req.urgent = false;
-            pool.Push(req);
+            head += count;
         }
 
         batch.Clear();
