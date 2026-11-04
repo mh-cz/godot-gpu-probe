@@ -2,6 +2,12 @@
 A C# addon that allows to pick coordinates on a texture and return the individual RGBA values without having to upload the entire texture from the GPU first.  
 This is useful for checking live data from shaders, real-time changing textures or lighting brightness levels and it is fast enough even for mobile games.  
 
+## -----
+- The probe works in batches. Probe size dictates how many individual bytes can a single batch return. Default is (32*2)*4 = 256 individual bytes from all texture slots combined.
+- GPUs usually have better things to do than constantly sending data through the CPU so default throttling is set to 100 millisecond intervals.  
+- If a pixel position is being constantly updated while throttling then only the latest pixel position will be kept and probed in the next batch.  
+
+
 ## Usage
 First tell the probe where to look:
 ```
@@ -32,8 +38,4 @@ public override void _PhysicsProcess(double delta)
     );
 }
 ```
-## -----
-- The probe works in batches. Probe size dictates how many individual bytes can a single batch return. Default is (32*2)*4 = 256 individual bytes from all texture slots combined.
-- GPUs usually have better things to do than constantly sending data through the CPU so default throttling is set to 100 millisecond intervals.  
-- If a pixel position is being constantly updated while throttling then only the latest pixel position will be kept and probed in the next batch.  
 
