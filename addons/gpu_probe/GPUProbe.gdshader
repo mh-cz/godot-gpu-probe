@@ -4,8 +4,8 @@ render_mode blend_disabled;
 #define MAX_TEXTURES 8 // MUST MATCH GPUProbe.MAX_TEXTURES
 
 uniform sampler2D query_tex : filter_nearest; 				// the query texture (MAX_POINTS, 1)
-uniform ivec2 probe_size; 									// the size of the probe texture (MAX_POINTS / 4, 1)
 uniform sampler2D textures[MAX_TEXTURES] : filter_nearest; 	// the textures to probe
+uniform ivec2 probe_size; 									// the size of the probe texture (MAX_POINTS / 4, 1)
 uniform vec4 oob_colors[MAX_TEXTURES]; 						// out-of-bounds colors for each texture
 
 bool outside(ivec2 pos, ivec2 size) {
@@ -18,7 +18,7 @@ bool outside(ivec2 pos, ivec2 size) {
 float get_reading(int index) {
 
 	ivec4 q = ivec4(texelFetch(query_tex, ivec2(index, 0), 0));
-	if (q.z < 0 || q.z > 3) 
+	if (q.z < 0 || q.z > 3)
 		return 0.0; // invalid
 
 	READ_SLOT(0)
@@ -34,7 +34,7 @@ float get_reading(int index) {
 }
 
 void fragment() {
-	
+
 	ivec2 iuv = ivec2(UV * vec2(probe_size));
 	int last_px = probe_size.x * probe_size.y - 1;
 	int i = clamp(iuv.x + iuv.y * probe_size.x, 0, last_px) * 4;

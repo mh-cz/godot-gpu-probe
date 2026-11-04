@@ -31,8 +31,8 @@ public partial class Demo : Node2D
         req.Submit([
             (px_pos, GPUProbe.Channel.R, tex_slot),
             (px_pos, GPUProbe.Channel.G, tex_slot),
-            (px_pos, GPUProbe.Channel.B, tex_slot),
-            (px_pos, GPUProbe.Channel.A, tex_slot),
+            (px_pos.X, px_pos.Y, GPUProbe.Channel.B, tex_slot),
+            (px_pos.X, px_pos.Y, GPUProbe.Channel.A, tex_slot),
         ]);
     }
 

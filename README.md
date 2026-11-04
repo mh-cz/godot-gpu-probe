@@ -15,6 +15,9 @@ Copy the "gpu_probe" folder from the "addons" folder of the demo project into yo
 Then go to Project -> Project Settings -> Plugins -> GPU Probe -> Enable  
 "Add Autoload" will show up in the output log. This means the GPU Probe autoload was added.  
 
+Not using C#? Copy the "gpu_probe_gd" folder instead and enable "GPU Probe GD". See [GDScript version](#gdscript-version) below.  
+The two versions are completely separate. Every GDScript name ends with "GD" (autoload "GPUProbeGD", class "GPUProbeRequestGD"), so you can enable both at the same time.  
+
 
 ## Usage
 First, tell the probe which texture to read from, and create a request with a callback:
@@ -53,7 +56,7 @@ Keep one request for each thing you want to check and submit it again whenever y
 
 
 ## More options
-**Points:** you can write a point as `(x, y, channel, slot)` or `(Vector2I, channel, slot)` and you can mix both in the same list:
+**Points:** you can write a point as `(x, y, channel, slot)` or `(Vector2I, channel, slot)`, and you can mix both in the same list:
 ```cs
 req.Submit([
     (px_pos, GPUProbe.Channel.R, 0),
@@ -71,3 +74,31 @@ The results stay on the request after the callback, but they are replaced by the
 **Out of bounds:** points outside the texture return the color you set with `GPUProbe.SetTexture(slot, texture, out_of_bounds_color: new Color(0, 0, 0, 0))`. The default is transparent black.
 
 **Freed nodes:** if the callback is a method of a node that has been freed, the callback is skipped. This works when the callback is a method of the node. It does not work for a lambda that uses local variables.
+
+
+## GDScript version
+The "gpu_probe_gd" addon is the same probe written in pure GDScript. It works the same way, only the names follow GDScript style:
+```gdscript
+@onready var water_rect: TextureRect = $WaterSimRect
+var water_req := GPUProbeRequestGD.new(_on_water_probed)
+var water_tex_slot := 0
+var in_water := false
+
+func _ready() -> void:
+    GPUProbeGD.set_texture(water_tex_slot, water_rect.texture)
+
+func _physics_process(_delta: float) -> void:
+    var px_pos := Vector2i(water_rect.get_local_mouse_position().floor())
+    water_req.submit([
+        [px_pos, GPUProbeGD.Channel.B, water_tex_slot]  # result[0] -> 0..255
+    ])
+
+func _on_water_probed(req: GPUProbeRequestGD) -> void:
+    in_water = req.result[0] > 50
+```
+- A point is `[pos, channel, slot]` or `[x, y, channel, slot]`, and you can mix both in one list.
+- `req.result` is a `PackedByteArray`. Every result is a new array, so you can keep the old one without copying it.
+- `req.get_result_point(i)` returns `[pos, channel, slot]`.
+- `req.submit(points, true)` is an urgent request, and `req.cancel()` cancels it.
+- `GPUProbeGD.throttle_ms` and `GPUProbeGD.compatibility_wait_frames` change the timing.
+- The callback is skipped if its object was freed.

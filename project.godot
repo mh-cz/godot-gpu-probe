@@ -11,13 +11,14 @@ config_version=5
 [application]
 
 config/name="gpu_probe"
-run/main_scene="res://Demo.tscn"
+run/main_scene="res://cs/Demo.tscn"
 config/features=PackedStringArray("26.2", "C#", "GL Compatibility", "Redot")
 config/icon="res://icon.svg"
 
 [autoload]
 
 GPUProbe="*res://addons/gpu_probe/GPUProbe.tscn"
+GPUProbeGD="*res://addons/gpu_probe_gd/gpu_probe_gd.tscn"
 
 [dotnet]
 
@@ -25,7 +26,7 @@ project/assembly_name="gpu_probe"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/gpu_probe/plugin.cfg")
+enabled=PackedStringArray("res://addons/gpu_probe/plugin.cfg", "res://addons/gpu_probe_gd/plugin.cfg")
 
 [rendering]
 
