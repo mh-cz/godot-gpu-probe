@@ -1,45 +1,73 @@
 # Godot/Redot GPU probe
-A C# addon that allows to pick coordinates on a texture and return the individual RGBA values without having to upload the entire texture from the GPU first.  
-This is useful for checking live data from shaders, real-time changing textures or lighting brightness levels and it is fast enough even for mobile games.  
+A C# addon that reads the RGBA values of single pixels from a texture without downloading the whole texture from the GPU first.  
+It is useful for reading live data from shaders, textures that change in real time, or lighting brightness levels. It is fast enough even for mobile games.  
 
-## -----
-- The probe works in batches. Probe size dictates how many individual bytes can a single batch return. Default is (32*2)*4 = 256 individual bytes from all texture slots combined.
-- GPUs usually have better things to do than constantly sending data through the CPU so default throttling is set to 100 millisecond intervals.  
-- If a pixel position is being constantly updated while throttling then only the latest pixel position will be kept and probed in the next batch.  
+## How it works
+- The probe works in batches. Each point you ask for returns 1 byte (0..255), one color channel of one pixel. One batch can return up to (32*2)*4 = 256 bytes, from all texture slots combined. One request can hold up to 256 points.
+- There are 8 texture slots, so one batch can read from up to 8 different textures.
+- GPUs have better things to do than sending data back to the CPU all the time, so by default the probe reads at most once every 100 milliseconds (`GPUProbe.THROTTLE_MS`).
+- If you submit the same request again while it is still waiting, it is not added twice. Its points are replaced, so only the latest positions get probed in the next batch.
+- Forward+ and Mobile renderers read the data back asynchronously. The Compatibility renderer (OpenGL) waits a few frames (`GPUProbe.COMPATIBILITY_WAIT_FRAMES`) and then reads it back directly.
+
+
+## Installation
+Copy the "gpu_probe" folder from the "addons" folder of the demo project into your own "addons" folder. If you don't have one, create an "addons" folder in "res://".  
+Then go to Project -> Project Settings -> Plugins -> GPU Probe -> Enable  
+"Add Autoload" will show up in the output log. This means the GPU Probe autoload was added.  
 
 
 ## Usage
-Copy the "gpu_probe" folder in the "addons" folder in the demo project into your "addons" folder. If it doesn't exist then create a new "addons" folder in the "res://" directory.  
-Then navigate Project -> Project Settings -> Plugins -> GPU Probe -> Enable  
-"Add Autoload" will show up in the output log which means the GPU Probe autoload was successfully added.  
-  
-First tell the probe where to look:
-```
-ColorRect gpu_water_sim_rect;
+First, tell the probe which texture to read from, and create a request with a callback:
+```cs
+TextureRect water_rect;
+GPUProbe.Request water_req;
 int water_tex_slot = 0;
 bool in_water = false;
 
 public override void _Ready()
 {
-    gpu_water_sim_rect = GetNode<ColorRect>("GPUWaterSimRect");
-    GPUProbe.SetTexture(water_tex_slot, gpu_water_sim_rect.Texture);
+    water_rect = GetNode<TextureRect>("WaterSimRect");
+    GPUProbe.SetTexture(water_tex_slot, water_rect.Texture);
+
+    water_req = new GPUProbe.Request(OnWaterProbed);
 }
 ```
-Then tell it which values you need and what to do with them in a callback:  
-For example I store the water in the BLUE channel so I ask for the channel B in the water_tex_slot to get the value.
-```
+Then submit the points you need. Each point is a position, a color channel and a texture slot.  
+For example, I store the water in the BLUE channel, so I ask for channel B in water_tex_slot:
+```cs
 public override void _PhysicsProcess(double delta)
 {
-    Vector2I px_pos = (Vector2I)(water_sim_rect.GetLocalMousePosition()).Floor();
+    Vector2I px_pos = (Vector2I)water_rect.GetLocalMousePosition().Floor();
 
-    GPUProbe.ProbePosition("WATER CHECK".Hash(), 0,
-        [
-            (px_pos, GPUProbe.Channel.B, water_tex_slot)  // byte 0 -> 0..255
-        ],
-        bytes => {
-            in_water = bytes[0] > 50;  // if the value is over 50 then I'm in the water
-        }
-    );
+    water_req.Submit([
+        (px_pos, GPUProbe.Channel.B, water_tex_slot)  // Result[0] -> 0..255
+    ]);
+}
+
+private void OnWaterProbed(GPUProbe.Request req)
+{
+    in_water = req.Result[0] > 50;  // if the value is over 50 then I'm in the water
 }
 ```
+Keep one request for each thing you want to check and submit it again whenever you need new values. A request does not allocate memory after the first submit, as long as the number of points stays the same.
 
+
+## More options
+**Points:** you can write a point as `(x, y, channel, slot)` or `(Vector2I, channel, slot)`, and you can mix both in the same list:
+```cs
+req.Submit([
+    (px_pos, GPUProbe.Channel.R, 0),
+    (px_pos.X + 1, px_pos.Y, GPUProbe.Channel.G, 0),
+]);
+```
+
+**Results:** `req.Result[i]` is the value of the i-th point. `req.GetResultPoint(i)` tells you which point (position, channel, slot) that value was read from. This is useful because the position may have changed while you were waiting for the result.  
+The results stay on the request after the callback, but they are replaced by the next result. Copy them if you need to keep the old values.
+
+**Urgent requests:** `req.Submit(points, urgent: true)` skips the throttle and moves the request to the front of the queue.
+
+**Cancel:** `req.Cancel()` removes the request from the queue. If it was already sent to the GPU, its result is thrown away.
+
+**Out of bounds:** points outside the texture return the color you set with `GPUProbe.SetTexture(slot, texture, out_of_bounds_color: new Color(0, 0, 0, 0))`. The default is transparent black.
+
+**Freed nodes:** if the callback is a method of a node that has been freed, the callback is skipped. This works when the callback is a method of the node. It does not work for a lambda that uses local variables.
