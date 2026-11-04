@@ -3,7 +3,7 @@ A C#/GDscript addon that reads the RGBA values of individual pixels from a GPU t
 It is useful for reading live data from shaders, textures that change in real time, or lighting brightness levels. It is fast enough even for mobile games.  
 
 ## How it works
-- The probe works in batches. Each point you ask for returns 1 byte (0..255), one color channel of one pixel. One batch can return up to (32*2)*4 = 256 bytes, from all texture slots combined. One request can hold up to 256 points.
+- The probe works in batches. Each point you ask for returns 1 byte (0..255), one color channel of one pixel. By default one batch can return up to (32*2)*4 = 256 bytes, from all texture slots combined. One request can hold up to 256 points.
 - There are 8 texture slots, so one batch can read from up to 8 different textures.
 - GPUs have better things to do than sending data back to the CPU all the time, so by default the probe reads at most once every 100 milliseconds (`GPUProbe.THROTTLE_MS`).
 - If you submit the same request again while it is still waiting, it is not added twice. Its points are replaced, so only the latest positions get probed in the next batch.
