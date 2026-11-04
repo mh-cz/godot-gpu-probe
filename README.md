@@ -1,6 +1,6 @@
 # Godot/Redot GPU probe
 A C# addon that allows to pick coordinates on a texture and return the individual RGBA values without having to upload the entire texture from the GPU first.  
-This is useful for checking live data from shaders, real-time changing textures or lighting brightness levels.  
+This is useful for checking live data from shaders, real-time changing textures or lighting brightness levels and it is fast enough even for mobile games.  
 
 ## Usage
 First tell the probe where to look:
@@ -32,3 +32,7 @@ public override void _PhysicsProcess(double delta)
     );
 }
 ```
+## -----
+- The probe works in batches. Probe size dictates how many individual bytes can a single batch return. The default is (32*2)*4 = 256 individual bytes from all texture slots combined.  
+- If a pixel position is being constantly updated while trottling then only the latest pixel position will be kept and probed in the next batch.  
+- GPUs usually have better things to do than constantly sending data through the CPU so the default throttling is set to 100 millisecond intervals.  
