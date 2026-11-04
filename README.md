@@ -33,7 +33,7 @@ public override void _PhysicsProcess(double delta)
             (px_pos, GPUProbe.Channel.B, water_tex_slot)  // byte 0 -> 0..255
         ],
         bytes => {
-            in_water = bytes[0] > 50;  // if the water level in this pixel is over 50 then I'm in the water
+            in_water = bytes[0] > 50;  // if the value is over 50 then I'm in the water
         }
     );
 }
