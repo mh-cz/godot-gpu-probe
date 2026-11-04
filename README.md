@@ -11,7 +11,7 @@ It is useful for reading live data from shaders, textures that change in real ti
 
 
 ## Installation
-1) Copy the "gpu_probe" folder (or "gpu_probe_gd" folder if you don't use C#) from the "addons" folder of the demo project into your own "addons" folder. If you don't have one, create an "addons" folder in "res://".  
+1) Copy the "gpu_probe" folder (or "gpu_probe_gd" folder if you don't use C#) from the "addons" folder of the demo project into your own "addons" folder. If you don't have one, create an "addons" folder in root "res://" directory.  
 2) Go to Project -> Project Settings -> Plugins -> GPU Probe -> Enable  
 3) "Add Autoload" will show up in the output log. This means the GPU Probe autoload was added.  
 
