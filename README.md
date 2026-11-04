@@ -51,13 +51,14 @@ public override void _PhysicsProcess(double delta)
     Vector2I px_pos = (Vector2I)water_rect.GetLocalMousePosition().Floor();
 
     water_req.Submit([
-        (px_pos, GPUProbe.Channel.B, water_tex_slot)  // Result[0] -> 0..255
+        (px_pos, GPUProbe.Channel.B, water_tex_slot)  // bytes[0] -> 0..255
     ]);
 }
 
 private void OnWaterProbed(GPUProbe.Request req)
 {
-    in_water = req.Result[0] > 50;  // if the value is over 50 then I'm in the water
+    var bytes = req.Result[0];
+    in_water = bytes[0] > 50;  // if the value is over 50 then I'm in the water
 }
 ```
 ```gdscript
@@ -65,11 +66,12 @@ func _physics_process(_delta: float) -> void:
     var px_pos := Vector2i(water_rect.get_local_mouse_position().floor())
 
     water_req.submit([
-        [px_pos, GPUProbeGD.Channel.B, water_tex_slot]  # result[0] -> 0..255
+        [px_pos, GPUProbeGD.Channel.B, water_tex_slot]  # bytes[0] -> 0..255
     ])
 
 func _on_water_probed(req: GPUProbeRequestGD) -> void:
-    in_water = req.result[0] > 50  # if the value is over 50 then I'm in the water
+    var bytes := req.result
+    in_water = bytes[0] > 50  # if the value is over 50 then I'm in the water
 ```
 Keep one request for each thing you want to check and submit it again whenever you need new values. A request does not allocate memory after the first submit, as long as the number of points stays the same.
 
