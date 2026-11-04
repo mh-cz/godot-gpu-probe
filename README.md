@@ -32,6 +32,15 @@ public override void _Ready()
     water_req = new GPUProbe.Request(OnWaterProbed);
 }
 ```
+```gdscript
+@onready var water_rect: TextureRect = $WaterSimRect
+var water_req := GPUProbeRequestGD.new(_on_water_probed)
+var water_tex_slot := 0
+var in_water := false
+
+func _ready() -> void:
+    GPUProbeGD.set_texture(water_tex_slot, water_rect.texture)
+```
 Then submit the points you need. Each point is a position, a color channel and a texture slot.  
 For example, I store the water in the BLUE channel, so I ask for channel B in water_tex_slot:
 ```cs
@@ -49,6 +58,17 @@ private void OnWaterProbed(GPUProbe.Request req)
     in_water = req.Result[0] > 50;  // if the value is over 50 then I'm in the water
 }
 ```
+```gdscript
+func _physics_process(_delta: float) -> void:
+    var px_pos := Vector2i(water_rect.get_local_mouse_position().floor())
+
+    water_req.submit([
+        [px_pos, GPUProbeGD.Channel.B, water_tex_slot]  # result[0] -> 0..255
+    ])
+
+func _on_water_probed(req: GPUProbeRequestGD) -> void:
+    in_water = req.result[0] > 50  # if the value is over 50 then I'm in the water
+```
 Keep one request for each thing you want to check and submit it again whenever you need new values. A request does not allocate memory after the first submit, as long as the number of points stays the same.
 
 
@@ -59,6 +79,12 @@ req.Submit([
     (px_pos, GPUProbe.Channel.R, 0),
     (px_pos.X + 1, px_pos.Y, GPUProbe.Channel.G, 0),
 ]);
+```
+```gdscript
+req.submit([
+    [px_pos, GPUProbeGD.Channel.R, 0],
+    [px_pos.x + 1, px_pos.y, GPUProbeGD.Channel.G, 0],
+])
 ```
 
 **Results:** `req.Result[i]` is the value of the i-th point. `req.GetResultPoint(i)` tells you which point (position, channel, slot) that value was read from. This is useful because the position may have changed while you were waiting for the result.  
@@ -75,27 +101,10 @@ The results stay on the request after the callback, but they are replaced by the
 
 ## GDScript version
 The "gpu_probe_gd" addon is the same probe written in pure GDScript. It works the same way, only the names follow GDScript style:
-```gdscript
-@onready var water_rect: TextureRect = $WaterSimRect
-var water_req := GPUProbeRequestGD.new(_on_water_probed)
-var water_tex_slot := 0
-var in_water := false
-
-func _ready() -> void:
-    GPUProbeGD.set_texture(water_tex_slot, water_rect.texture)
-
-func _physics_process(_delta: float) -> void:
-    var px_pos := Vector2i(water_rect.get_local_mouse_position().floor())
-    water_req.submit([
-        [px_pos, GPUProbeGD.Channel.B, water_tex_slot]  # result[0] -> 0..255
-    ])
-
-func _on_water_probed(req: GPUProbeRequestGD) -> void:
-    in_water = req.result[0] > 50
-```
 - A point is `[pos, channel, slot]` or `[x, y, channel, slot]`, and you can mix both in one list.
 - `req.result` is a `PackedByteArray`. Every result is a new array, so you can keep the old one without copying it.
 - `req.get_result_point(i)` returns `[pos, channel, slot]`.
 - `req.submit(points, true)` is an urgent request, and `req.cancel()` cancels it.
+- `GPUProbeGD.set_texture(slot, texture, Color(0, 0, 0, 0))` sets the out of bounds color.
 - `GPUProbeGD.throttle_ms` and `GPUProbeGD.compatibility_wait_frames` change the timing.
 - The callback is skipped if its object was freed.
