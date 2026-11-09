@@ -5,11 +5,11 @@ It is useful for reading pixels from shaders and huge textures that change in re
 ## How it works
 - It uses a microscopic subviewport (32x2 by default) to draw and extract the pixels and channels of your choice.  
 - The probe works in batches. Each point you ask for returns 1 byte (0..255), one color channel of one pixel. By default one batch can return up to 256 individual values ((32x2)*4 = 256 bytes) from all texture slots combined. One request can hold up to 256 points.
-- There are 8 texture slots, so one batch can read from up to 8 different textures.
+- There are 8 texture slots, so one batch can read from up to 8 different textures.  
+- Bytes get returned in the same sequence they were written in the Submit array.  
 - GPUs have better things to do than sending data back to the CPU all the time, so by default the probe reads at most once every 100 milliseconds (`GPUProbe.THROTTLE_MS`).
 - If you submit the same request again while it is still waiting, it is not added twice. Its points are replaced, so only the latest positions get probed in the next batch.
 - Forward+ and Mobile renderers read the data back asynchronously. The Compatibility renderer (OpenGL) waits a few frames (`GPUProbe.COMPATIBILITY_WAIT_FRAMES`) and then reads it back directly.
-
 
 ## Installation
 1) Copy the "gpu_probe" folder (or "gpu_probe_gd" folder if you don't use C#) from the "addons" folder of the demo project into your own "addons" folder. If you don't have one, create an "addons" folder in root "res://" directory.  
@@ -52,7 +52,7 @@ public override void _PhysicsProcess(double delta)
     Vector2I px_pos = (Vector2I)water_rect.GetLocalMousePosition().Floor();
 
     water_req.Submit([
-        (px_pos, GPUProbe.Channel.B, water_tex_slot)  // bytes[0] -> 0..255
+        (px_pos, GPUProbe.Channel.B, water_tex_slot)  // byte 0
     ]);
 }
 
@@ -67,7 +67,7 @@ func _physics_process(_delta: float) -> void:
     var px_pos := Vector2i(water_rect.get_local_mouse_position().floor())
 
     water_req.submit([
-        [px_pos, GPUProbeGD.Channel.B, water_tex_slot]  # bytes[0] -> 0..255
+        [px_pos, GPUProbeGD.Channel.B, water_tex_slot]  // byte 0
     ])
 
 func _on_water_probed(req: GPUProbeRequestGD) -> void:
