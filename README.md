@@ -34,7 +34,7 @@ public override void _Ready()
 }
 ```
 ```gdscript
-@onready var water_rect: TextureRect = $WaterSimRect
+@onready var water_rect:TextureRect = $WaterSimRect
 var water_req := GPUProbeRequestGD.new(_on_water_probed)
 var in_water := false
 ```
