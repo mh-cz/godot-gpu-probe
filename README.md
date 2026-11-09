@@ -1,6 +1,6 @@
 # Godot/Redot GPU probe (addon)
 A C#/GDscript addon that reads individual RGBA values of individual pixels from a GPU texture without downloading the whole texture from the GPU first.  
-It is useful for reading live data from shaders, textures that change in real time, or lighting brightness levels. It is fast enough even for mobile games.  
+It is useful for reading pixels from shaders and huge textures that change in real time. It is fast enough even for mobile games.  
 
 ## How it works
 - It uses a microscopic subviewport (32x2) by default to draw and extract the pixels and channels of your choice.  
