@@ -20,7 +20,8 @@ If you use the C# version of the engine then do not copy the GDscript addon vers
 
 
 ## Usage
-First, tell the probe which texture to read from, and create a request with a callback:
+First, tell the probe which texture to read from, and create a new request instance with a callback:  
+(You can create as many request instances as you need)
 ```cs
 TextureRect water_rect;
 GPUProbe.Request water_req;
