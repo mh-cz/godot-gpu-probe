@@ -53,7 +53,7 @@ public override void _PhysicsProcess(double delta)
 private void OnWaterProbed(GPUProbe.Request req)
 {
     var bytes = req.Result;
-    in_water = bytes[0] > 50;  // if the value is over 50 then I'm in the water
+    in_water = bytes[0] > 50;  // if the blue channel pixel value is over 50 then I'm in the water
 }
 ```
 ```gdscript
@@ -66,7 +66,7 @@ func _physics_process(_delta: float) -> void:
 
 func _on_water_probed(req: GPUProbeRequestGD) -> void:
     var bytes := req.result
-    in_water = bytes[0] > 50  # if the value is over 50 then I'm in the water
+    in_water = bytes[0] > 50  # if the blue channel pixel value is over 50 then I'm in the water
 ```
 Keep one request for each thing you want to check and submit it again whenever you need new values. A request does not allocate memory after the first submit, as long as the number of points stays the same.
 
