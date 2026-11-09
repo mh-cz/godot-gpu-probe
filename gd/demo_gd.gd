@@ -1,6 +1,5 @@
 extends Node2D
 
-var tex_slot := 0
 var draw_scale := 4.0
 
 @onready var tex_rect:TextureRect = $UI/View
@@ -14,17 +13,16 @@ func _ready() -> void:
 	tex_rect.texture = tex
 	tex_rect.size = tex.get_size() * draw_scale
 
-	GPUProbeGD.set_texture(tex_slot, tex)
-
 
 func _physics_process(_delta: float) -> void:
 	var px_pos := Vector2i((tex_rect.get_local_mouse_position() / draw_scale).floor())
-
+	var tex := tex_rect.texture
+	
 	req.submit([
-		[px_pos, GPUProbeGD.Channel.R, tex_slot],
-		[px_pos, GPUProbeGD.Channel.G, tex_slot],
-		[px_pos.x, px_pos.y, GPUProbeGD.Channel.B, tex_slot],
-		[px_pos.x, px_pos.y, GPUProbeGD.Channel.A, tex_slot],
+		[px_pos, GPUProbeGD.Channel.R, tex],  # byte 0
+		[px_pos, GPUProbeGD.Channel.G, tex],  # byte 1
+		[px_pos.x, px_pos.y, GPUProbeGD.Channel.B, tex],  # byte 2
+		[px_pos.x, px_pos.y, GPUProbeGD.Channel.A, tex],  # byte 3
 	])
 
 
